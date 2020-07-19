@@ -1,0 +1,664 @@
+---
+title:
+subtitle:
+author:
+institute:
+output:
+  beamer_presentation:
+    slide_level: 2
+    includes:
+      in_header: asteroids temp.tex
+---
+
+```{r setup, include=FALSE}
+library(reticulate)
+conda_list()
+use_condaenv('my_env')
+```
+
+# Introduction
+
+## Introduction
+* The data set contains 27 features on asteroids
+
+* The task is to predict the asteroid's diameter based on the features provided
+
+* To predict the diameter of the asteroids, we will be creating an artificial neural network
+
+# Data
+```{python, include = FALSE}
+import pandas as pd
+
+asteroid = pd.read_csv('Asteroid.csv')
+```
+
+## Raw Data Structure
+
+\tiny
+\begin{center}
+\begin{tabular}{|p{1.5cm}|p{1cm}|p{1cm}|p{1cm}|}
+    \hline
+    feature & observations & non-null & data type\\
+    \hline
+    full name & 839736 & non-null & object\\
+    \hline
+    a & 839734 & non-null  & float64\\
+    \hline
+    e & 839736 & non-null & float64\\
+    \hline
+    G & 119 & non-null & float64\\ 
+    \hline
+    i & 839736 & non-null & float64\\
+    \hline
+    om & 839736 & non-null & float64\\
+    \hline
+    w & 839736 & non-null & float64\\
+    \hline
+    q & 839736 & non-null & float64\\
+    \hline
+    ad & 839730 & non-null & float64\\
+    \hline
+    per y & 839735 & non-null & float64\\
+    \hline
+    data arc & 823947 & non-null & float64\\
+    \hline
+    condition code & 838743 & non-null & object\\
+    \hline
+    n obs used & 839736 & non-null & int64\\
+    \hline
+    H & 837042 & non-null & float64\\
+    \hline
+    diameter & 137681 & non-null & object\\
+    \hline
+    extent & 18 & non-null & object\\
+    \hline
+    albedo & 136452 & non-null & float64\\
+    \hline
+    rot per & 18796 & non-null & float64\\
+    \hline
+    GM & 14 & non-null & float64\\
+    \hline
+    BV & 1021 & non-null & float64\\
+    \hline
+    UB & 979 & non-null & float64\\
+    \hline
+    IR & 1 & non-null & float64\\
+    \hline
+    spec B & 1666 & non-null & object\\
+    \hline
+    spec T & 980 & non-null & object\\
+    \hline
+    neo & 839730 & non-null & object\\
+    \hline
+    pha & 822814 & non-null & object\\
+    \hline
+    moid & 822814 & non-null & float64\\
+    \hline
+\end{tabular}
+\end{center}
+
+
+```{python, include = FALSE, echo = FALSE}
+asteroid.info()
+```
+
+## Data Cleaning
+* The data set needs to be cleaned before it can be used
+
+* Take the following steps:
+  + Drop all observations that have missing values for diameter
+  + Drop arbitrary features (asteroid name and condition code)
+  + Drop features containing too many missing values
+  + Encode categorical features
+  + Fill remaining missing values with feature mean
+  
+```{python, include = FALSE, echo = FALSE}
+asteroid['diameter'] = pd.to_numeric(asteroid['diameter'], errors = 'coerce') 
+drop = asteroid['diameter'][asteroid['diameter'].isnull()].index
+asteroid = asteroid.drop(drop, axis = 0) 
+
+smallFeatures = asteroid.columns[asteroid.isna().sum()/asteroid.shape[0] > 0.5]
+asteroid = asteroid.drop(smallFeatures, axis=1)
+
+asteroid = asteroid.drop(['condition_code', 'full_name'], axis = 1)
+
+asteroid = pd.get_dummies(asteroid, columns = ['neo', 'pha'])
+
+asteroid = asteroid.fillna(asteroid.mean())
+```
+
+## Clean Data Structure
+* The cleaned data set has 137,680 asteroids that can be used for training
+
+\tiny
+\begin{center}
+\begin{tabular}{|p{1.5cm}|p{1cm}|p{1cm}|p{1cm}|}
+    \hline
+    feature name & observations & non-null & data type\\
+    \hline
+    a & 137680 & non-null & float64\\
+    \hline
+    e & 137680 & non-null & float64\\
+    \hline
+    i & 137680 & non-null & float64\\
+    \hline
+    om & 137680 & non-null & float64\\
+    \hline
+    w & 137680 & non-null & float64\\
+    \hline
+    q & 137680 & non-null & float64\\
+    \hline
+    ad & 137680 & non-null & float64\\
+    \hline
+    per y & 137680 & non-null & float64\\
+    \hline
+    data arc & 137680 & non-null & float64\\
+    \hline
+    n obs used & 137680 & non-null & int64\\
+    \hline
+    H & 137680 & non-null & float64\\
+    \hline
+    diameter & 137680 & non-null & float64\\
+    \hline
+    albedo & 137680 & non-null & float64\\
+    \hline
+    moid & 137680 & non-null & float64\\
+    \hline
+    neo N & 137680 & non-null & uint8\\
+    \hline
+    neo Y & 137680 & non-null & uint8\\
+    \hline
+    pha N & 137680 & non-null & uint8\\
+    \hline
+    pha Y & 137680 & non-null & uint8\\
+    \hline
+\end{tabular}
+\end{center}
+
+```{python, include = FALSE, echo = FALSE}
+asteroid.info()
+```
+
+## Summary Statistics
+* Summary statistics of the numerical features
+
+\scriptsize
+```{python, echo = FALSE}
+stats = asteroid.describe(exclude = 'uint8')
+stats.round(2)
+```
+
+## Correlation
+* Correlation coefficients between diameter and predictors
+
+* The data doesn't appear to be highly correlated
+
+```{python, include = FALSE, echo = FALSE}
+asteroid.corr()['diameter'].abs().sort_values(ascending=False)
+```
+
+\tiny
+\begin{center}
+\begin{tabular}{|p{1.5cm}|p{1cm}|}
+\hline
+feature & correlation\\
+\hline
+diameter & 1.000000\\
+\hline
+H & 0.568580\\
+\hline
+data arc & 0.493088\\
+\hline
+n obs used & 0.386325\\
+\hline
+moid & 0.333046\\
+\hline
+q & 0.330317\\
+\hline
+a & 0.145027\\
+\hline
+albedo & 0.107493\\
+\hline
+ad & 0.093622\\
+\hline
+i & 0.052827\\
+\hline
+e & 0.049180\\
+\hline
+per y & 0.049053\\
+\hline
+neo Y & 0.036215\\
+\hline
+neo N & 0.036215\\
+\hline
+pha N & 0.019629\\
+\hline
+pha Y & 0.019629\\
+\hline
+w & 0.002909\\
+\hline
+om & 0.001191\\
+\hline
+\end{tabular}
+\end{center}
+
+# Pre-Processing
+
+## Pre-Processing
+* Split the data into a train and test sets (80:20 split) and separate the targets from the predictors
+
+* Normalize the predictors using a standard scaler
+
+* Set aside 25,000 observations for hold-out validation to observe the performance during the training process (approx same as test set)
+
+```{python, include = FALSE, echo = FALSE}
+from sklearn.model_selection import train_test_split
+predictors = asteroid.drop('diameter', axis = 1) 
+target = asteroid['diameter']
+X_train, X_test, Y_train, Y_test = train_test_split(predictors, target, 
+                                                    test_size = 0.20, 
+                                                    random_state = 1)
+```
+
+```{python, include = FALSE, echo = FALSE}
+from sklearn import preprocessing
+
+std_scaler = preprocessing.StandardScaler().fit(X_train)
+
+def scaler(X):
+    x_norm_arr = std_scaler.fit_transform(X)
+    return pd.DataFrame(x_norm_arr, columns = X.columns, index = X.index)
+
+X_train = scaler(X_train)
+X_test = scaler(X_test)
+```
+
+```{python, echo = FALSE}
+X_val = X_train[:25000]
+partial_X_train = X_train[25000:]
+
+Y_val = Y_train[:25000]
+partial_Y_train = Y_train[25000:]
+```
+
+# Deep Neural Network
+
+## Model Architecture
+* The following model structure remains constant:
+  + Since this is a regression problem, use:
+    - Loss function: mean square error (mse)
+    - Optimizer: ADAM
+    - Metric: mean absolute error (mae)
+  + Layers (activation): dense (rectified linear unit function)
+  + Output layer (activation): one unit (none)
+  
+* Tune the following:
+  + batch size
+  + number of hidden layers
+  + size of hidden layers
+  + dropout layers
+  + epochs
+
+## Initial Model Parameters
+* The first model needs to be large enough that it over-fits the train set
+
+* The goal is to over-fit the data and then scale down until we achieve the optimal model that generalizes the data
+
+* Use the following hyper-parameters:
+  + batch size: 64
+  + number of hidden layers: 4
+  + size of hidden layers: 128, 128, 64, 64
+  + dropout layers: none
+  + epochs: 50
+
+## Model Summary
+
+```{python, include = FALSE, echo = FALSE}
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.optimizers import Adam
+
+model = Sequential()
+model.add(Dense(128, activation = 'relu', 
+                input_dim = partial_X_train.shape[1]))
+model.add(Dense(128, activation = 'relu'))
+model.add(Dense(64, activation = 'relu'))
+model.add(Dense(64, activation = 'relu'))
+model.add(Dense(1))
+
+model.compile(loss = 'mean_squared_error', 
+              optimizer = 'adam', 
+              metrics = ['mae'])
+```
+
+\footnotesize
+```{python, echo = FALSE}
+model.summary()
+```
+
+## Model Loss
+* The train and validation loss have quite a bit of noise
+
+* Over-fitting the train set
+
+\centering
+\includegraphics[width = 225pt]{asteroids_loss1.jpg}
+
+# Hyper-parameter Tuning
+
+## Tuning Hyper-parameters
+* Begin tuning the hyper-parameters of the model
+
+* Eliminate the noise in the train loss
+
+* Likely a result of high variance between batches
+
+* Increase the batch size and re-run the same model (batch size: 512)
+
+## Model Loss
+* Train loss is now much more smooth
+
+* Still over-fitting the train set
+
+\centering
+\includegraphics[width = 225pt]{asteroids_loss2.jpg}
+
+## Reducing Model Size
+* Reduce the model size by halving the output size for each layer
+
+* Use the following hyper-parameters:
+  + batch size: 512
+  + number of hidden layers: 4
+  + size of hidden layers: 64, 64, 32, 32
+  + dropout layers: none
+  + epochs: 50
+
+```{python, include = FALSE, echo = FALSE}
+model = Sequential()
+model.add(Dense(64, activation = 'relu', 
+                input_dim = partial_X_train.shape[1]))
+model.add(Dense(64, activation = 'relu'))
+model.add(Dense(32, activation = 'relu'))
+model.add(Dense(32, activation = 'relu'))
+model.add(Dense(1))
+
+model.compile(loss = 'mean_squared_error', 
+              optimizer = 'adam', 
+              metrics = ['mae'])
+```
+
+## Model Summary
+
+\footnotesize
+```{python, echo = FALSE}
+model.summary()
+```
+
+## Model Loss
+* Over-fitting is reduced, but still prevalent 
+
+* Train loss is converging fast (around 10 epochs)
+
+\centering
+\includegraphics[width = 225pt]{asteroids_loss3.jpg}
+
+## Reducing Number of Layers
+* Remove a large hidden layer and reduce the output for the last hidden layer
+
+* Use the following hyper-parameters:
+  + batch size: 512
+  + number of hidden layers: 3
+  + size of hidden layers: 64, 32, 16
+  + dropout layers: none
+  + epochs: 50
+  
+```{python, include = FALSE, echo = FALSE}
+model = Sequential()
+model.add(Dense(64, activation = 'relu', 
+                input_dim = partial_X_train.shape[1]))
+model.add(Dense(32, activation = 'relu'))
+model.add(Dense(16, activation = 'relu'))
+model.add(Dense(1))
+
+model.compile(loss = 'mean_squared_error', 
+              optimizer = 'adam', 
+              metrics = ['mae'])
+```
+
+## Model Summary
+
+\tiny
+```{python, echo = FALSE}
+model.summary()
+```
+
+## Model Loss
+* Over-fitting reduced
+
+* Train loss is now converging much later, around 30 epochs
+
+\centering
+\includegraphics[width = 225pt]{asteroids_loss4.jpg}
+
+## Adding Dropout Layers
+* Rather than reducing the model size, add a dropout layer between each hidden layer
+
+* Use the following hyper-parameters:
+  + batch size: 512
+  + number of hidden layers: 3
+  + size of hidden layers: 64, 32, 16
+  + dropout layers: 3 (rate: 0.25)
+  + epochs: 50
+
+```{python, include = FALSE, echo = FALSE}
+from keras.layers import Dropout
+
+model = Sequential()
+model.add(Dense(64, activation = 'relu', 
+                input_dim = partial_X_train.shape[1]))
+model.add(Dropout(.25))
+model.add(Dense(32, activation = 'relu'))
+model.add(Dropout(.25))
+model.add(Dense(16, activation = 'relu'))
+model.add(Dropout(.25))
+model.add(Dense(1))
+
+model.compile(loss = 'mean_squared_error', 
+              optimizer = 'adam', 
+              metrics = ['mae'])
+```
+
+## Model Summary
+
+\scriptsize
+```{python, echo = FALSE}
+model.summary()
+```
+
+## Model Loss
+* Train and validation loss are nearly the same
+
+* The model begins to converge around 30 epochs
+
+\centering
+\includegraphics[width = 225pt]{asteroids_loss5.jpg}
+
+## Results
+* Train the last model again, but only for 30 epochs:
+  + batch size: 512
+  + number of hidden layers: 3
+  + size of hidden layers: 64, 32, 16
+  + dropout layers: 3 (rate: 0.25)
+  + epochs: 30
+  
+* Evaluate the model on the test set
+  + $mae = 0.969$
+  + $R^2 = 0.895$
+
+# Feature Engineering
+
+## Feature Engineering
+* Increase model performance with feature engineering
+
+* Log is a common transformation in astrophysics
+
+* Use the log of diameter as the new target
+
+* Add log transforms for all numeric predictors
+
+```{python, include = FALSE, echo = FALSE}
+import numpy as np
+
+indicators = asteroid.filter(['neo_N', 'neo_Y', 'pha_N', 'pha_Y'], axis = 1)
+asteroid = asteroid.drop(['neo_N', 'neo_Y', 'pha_N', 'pha_Y'], axis = 1)
+
+asteroid['diameter']= asteroid['diameter'].apply(np.log)
+for column in asteroid.columns.drop(['diameter']):
+    asteroid['log('+column+')']=asteroid[column].apply(np.log)
+asteroid = asteroid.dropna(axis=1)
+
+asteroid = pd.concat([asteroid, indicators], axis = 1)
+```
+
+```{python, include = FALSE, echo = FALSE}
+predictors = asteroid.drop('diameter', axis = 1) 
+target = asteroid['diameter']
+X_train, X_test, Y_train, Y_test = train_test_split(predictors, target, 
+                                                    test_size = 0.20, 
+                                                    random_state = 1)
+
+std_scaler = preprocessing.StandardScaler().fit(X_train)
+
+def scaler(X):
+    x_norm_arr = std_scaler.fit_transform(X)
+    return pd.DataFrame(x_norm_arr, columns = X.columns, index = X.index)
+
+X_train = scaler(X_train)
+X_test = scaler(X_test)
+
+X_val = X_train[:25000]
+partial_X_train = X_train[25000:]
+
+Y_val = Y_train[:25000]
+partial_Y_train = Y_train[25000:]
+```
+
+## Correlation
+* Top 10 predictor correlation coefficients with the log of the diameter
+
+* Correlation in the data has increased significantly
+
+\scriptsize
+```{python, include = FALSE, echo = FALSE}
+asteroid.corr()['diameter'].abs().sort_values(ascending=False)
+```
+
+\begin{center}
+\begin{tabular}{|p{1.5cm}|p{1cm}|}
+  \hline
+  feature & correlation\\
+  \hline
+  diameter & 1.000000\\
+  \hline
+  log(H) & 0.835468\\
+  \hline
+  H & 0.832306\\
+  \hline
+  log(a) & 0.563592\\
+  \hline
+  log(per y) & 0.563592\\
+  \hline
+  log(q) & 0.543708\\
+  \hline
+  log(moid) & 0.528661\\
+  \hline
+  q & 0.522391\\
+  \hline
+  moid & 0.521080\\
+  \hline
+  data arc & 0.519099\\
+  \hline
+  n obs used & 0.509806\\
+  \hline
+\end{tabular}
+\end{center}
+
+## Previous Model
+* Train the model using the tuned hyper-parameters from the previous model:
+  + batch size: 512
+  + number of hidden layers: 3
+  + size of hidden layers: 64, 32, 16
+  + dropout layers: 3 (rate: 0.25)
+  + epochs: 30
+
+## Model Loss
+* The model converges within the first couple of epochs
+
+\centering
+\includegraphics[width = 225pt]{asteroids_loss6.jpg}
+
+## Simpler Model
+* Use a more basic model
+
+* Reduce the model complexity
+
+* Use the following hyper-parameters:
+  + batch size: 64
+  + number of hidden layers: 2
+  + size of hidden layers: 16, 8
+  + dropout layers: none
+  + epochs: 10
+
+```{python, include = FALSE, echo = FALSE}
+model = Sequential()
+model.add(Dense(16, activation = 'relu', 
+                input_dim = partial_X_train.shape[1]))
+model.add(Dense(8, activation = 'relu'))
+model.add(Dense(1))
+
+model.compile(loss = 'mean_squared_error', 
+              optimizer = 'adam', 
+              metrics = ['mae'])
+```
+
+## Model Summary
+
+\footnotesize
+```{python, echo = FALSE}
+model.summary()
+```
+
+## Model Loss
+* The loss in converging extremely fast, even with such a small model
+
+\centering
+\includegraphics[width = 225pt]{asteroids_loss7.jpg}
+
+## Results
+* Train the last model again, but only with 4 epochs:
+  + batch size: 64
+  + number of hidden layers: 3
+  + size of hidden layers: 64, 32, 16
+  + dropout layers: 3 (rate: 0.25)
+  + epochs: 4
+  
+* Evaluate the model on the test set:
+  + $mae = 0.078$
+  + $R^2 = 0.967$
+
+# Conclusion
+
+## Conclusion
+* Developed a deep neural network to predict asteroid diameter 
+
+* Used hold-out validation
+
+* Tuned the hyper-parameters to generalize the data
+
+* Evaluated the model on the test set and got $R^2 = 0.895$
+
+* Engineered features to enhance model performance
+
+* Developed a much more simple model
+
+* Evaluated the model on the test set and got $R^2= 0.967$

@@ -1,0 +1,353 @@
+---
+title: Predicting Asteroid Diameter Using Artificial Neural Networks
+author:
+  - Cain Farnam
+header-includes:
+- \usepackage{lipsum}
+- \usepackage{float} 
+- \floatplacement{figure}{H}
+output:
+  pdf_document:
+    number_sections: TRUE
+bibliography: asteroid ref.bib
+nocite: '@*'
+---
+\vspace{1in}
+
+# Introduction
+
+
+There are over 150 million asteroids orbiting around the sun. These rocky satellites range anywhere from a few meters in diameter, to several kilometers. It can be extremely difficult to measure the diameter of an asteroid, as they are generally quite some distance away from our own plant. A NASA subsidiary keeps track of all of the asteroids discovered, but often times the diameter is not calculated. The goal of this paper is to provide a deep neural network that predicts the diameter of an asteroid based on other variables, much of which are more easily obtained. 
+
+# Data
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{1.5cm}|p{1.75cm}|p{1cm}||p{1.5cm}|p{1.75cm}|p{1cm}|}
+    \hline
+    feature & observations & data type & feature & observations & data type\\
+    \hline
+    full name & 839736 & object & diameter & 137681 & object\\
+    \hline
+    a & 839734 & float64 & extent & 18 & object\\
+    \hline
+    e & 839736 & float64 & albedo & 136452 & float64\\
+    \hline
+    G & 119 & float64 & rot per & 18796 & float64\\
+    \hline
+    i & 839736 & float64 & GM & 14 & float64\\
+    \hline
+    om & 839736 & float64 & BV & 1021 & float64\\
+    \hline
+    w & 839736 & float64 & UB & 979 & float64\\
+    \hline
+    q & 839736 & float64 & IR & 1 & float64\\
+    \hline
+    ad & 839730 & float64 & spec B & 1666 & object\\
+    \hline
+    per y & 839735 & float64 & spec T & 980 & object\\
+    \hline
+    data arc & 823947 & float64 & neo & 839730 & object\\
+    \hline
+    condition code & 838743 & object & pha & 822814 & object\\
+    \hline
+    n obs & 839736 & int64 & moid & 822814 & float64\\
+    \hline
+    H & 837042 & float64 & & & \\
+    \hline
+\end{tabular}
+\caption{Data structure of asteroid data set}
+\label{Table:1}
+\end{table}
+
+The data set comes from the Jet Propulsion Laboratory (JPL) of California Institute of Technology which is an organization under NASA. The original data set contains over 800,000 asteroids with 27 features. The majority of the observations; however, lack the diameter. Since we will be creating a supervised learning model, we will only be looking at the observations that do contain the diameter.
+
+## Data Cleaning
+Table 1 shows the structure of the data obtained from JBL. Only 137,681 observations contain the diameter, so the rest of the observations will not be used to train the model. The following data cleaning processes were also taken:
+
+* Dropped arbitrary features (asteroid name and condition code)
+* Dropped features containing too many missing values
+* Encoded categorical features
+* Filled remaining missing values with feature mean
+
+The cleaned data set has a total of 137,680 observations and 16 remaining features that can be used for training. 
+
+## Summary Statistics and Correlation
+Table 2 shows the summary statistics for each remaining numerical feature.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{1.25cm}|p{1.25cm}|p{1.25cm}|p{1.25cm}|p{1.25cm}|p{1.25cm}|p{1.25cm}|p{1.25cm}|}
+\hline
+feature & a	& e	& i	& om & w & q & ad\\
+\hline
+mean & 2.81	& 0.15 & 10.35 & 169.83	& 181.90 & 2.40	& 3.23\\
+\hline
+std	& 1.52 & 0.08	& 6.84 & 102.71	& 103.56 & 0.52	& 2.9\\
+\hline
+min	& 0.63 & 0.00	& 0.02 & 0.00	& 0.00 & 0.08	& 1.00\\
+\hline
+25\%	& 2.54 & 0.09	& 5.12 & 82.33 & 91.94 & 2.07	& 2.86\\
+\hline
+50\%	& 2.75 & 0.14	& 9.39 & 160.44	& 183.66 & 2.36	& 3.17\\	
+\hline
+75\%	& 3.09 & 0.19	& 13.74	& 256.28 & 271.76	& 2.69 & 3.47\\
+\hline
+max	& 389.15 & 0.98	& 170.32 & 359.99	& 360.00 & 40.47 & 772.20\\
+\hline
+\hline
+feature & per y	& data arc & n obs & H & diameter	& albedo & moid\\
+\hline
+mean & 4.88	& 8908.70	& 659.41 & 15.18 & 5.48	& 0.13 & 1.42\\
+\hline
+std	& 25.53 & 6147.38 & 581.88	& 1.40 & 9.37	& 0.11 & 0.51\\
+\hline
+min	& 0.50	& 1.00 & 5.00	& 3.20 & 0.00	& 0.00 & 0.00\\
+\hline
+25\% & 4.04	& 6266.00	& 214.00 & 14.40 & 2.77	& 0.05 & 1.08\\
+\hline
+50\% & 4.56	& 7497.00	& 483.00 & 15.30 & 3.96	& 0.08 & 1.38\\	
+\hline
+75\% & 5.44 & 9652.00 & 958.00	& 16.10	& 5.74 & 0.19	& 1.70\\
+\hline
+max	& 7676.74	& 72684.00 & 9325.00 & 29.90 & 939.40	& 1.00 & 39.51\\
+\hline
+\end{tabular}
+\caption{Summary statistics for features}
+\label{Table:2}
+\end{table}
+
+Table 3 show the linear correlation between the diameter and the predictor variables. It doesn't appear that the data has high correlation, with the largest coefficient being approximately 0.57.
+
+\begin{table}
+\centering
+\begin{tabular}{|p{1.25cm}|p{1.75cm}||p{1.25cm}|p{1.75cm}|}
+\hline
+feature & correlation & feature & correlation\\
+\hline
+diameter & 1.000000 & ad & 0.093622\\
+\hline
+H & 0.568580 & i & 0.052827\\
+\hline
+data arc & 0.493088 & e & 0.049180\\
+\hline
+n obs & 0.386325 & per y & 0.049053\\
+\hline
+moid & 0.333046 & neo Y & 0.036215\\
+\hline
+q & 0.330317 & pha Y & 0.019629\\
+\hline
+a & 0.145027 & w & 0.002909\\
+\hline
+albedo & 0.107493 & om & 0.001191\\
+\hline
+\end{tabular}
+\caption{Correlation between diameter and features}
+\label{Table:3}
+\end{table}
+
+# Methods & Analysis
+
+## Pre-Processing
+Before I began training our model, I split the data into a train and test sets (80:20 split) and separated the targets from the predictors. Because the predictor variables have such a wide range of values and variability, I normalized the predictors using a standard scaler. Since there there are quite a few observations, I decided to use a hold-out validation set to observe the performance during the training process. I made the validation set 25,000, roughly the same amount as the test set.
+
+## Model Architecture
+Since the diameter of an asteroid is a continuous variable, my deep neural network is a regression model. The input layer will be the predictor variables and the output layer should be the predicted diameter. The model uses the following architecture:
+
+* Loss function: mean square error (mse)
+* Optimizer: ADAM (learning rate = 0.01)
+* Metric: mean absolute error (mae)
+* Hidden layers (activation): dense (rectified linear unit function)
+* Output layer (activation): one unit (none)
+
+The hyper-parameters that I considered for the tuning process were:
+
+* batch size
+* number of hidden layers
+* size of hidden layers
+* number of dropout layers
+* number of epochs
+
+## Model Development
+The goal is to over-fit the data and then scale down until we achieve the optimal model that generalizes the data. The first model needs to be large enough that it over-fits the train set. 
+
+First model:
+
+* batch size: 64
+* number of hidden layers: 4
+* size of hidden layers: 128, 128, 64, 64
+* dropout layers: none
+* epochs: 50
+
+
+Figure 1 shows the train and validation loss of our first model. There is quite a bit of noise in both the train and validation loss, but it definitely is over-fitting on the train set.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width = 300pt]{asteroids_loss1.jpg}
+\caption{Train loss vs. validation loss of first model}
+\end{figure}
+
+
+## Hyper-parameter Tuning
+The next step is to begin tuning the hyper-parameters until our model performs as well as possible, without over-fitting or under-fitting. 
+
+My first goal during the tuning process was to eliminate the noise in the training loss. The noise was likely a consequence of the small initial batch size. The variability between batches was too high. So on the second attempt, I increased the batch size and re-ran the same model.
+
+\newpage
+
+Second Model:
+
+* batch size: 512
+* number of hidden layers: 4
+* size of hidden layers: 128, 128, 64, 64
+* dropout layers: none
+* epochs: 50
+
+Figure 2 shows the loss from our second model. Increasing the batch size greatly reduced the noise, as I had hoped for, but it doesn't appear to have reduced the over-fitting.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width = 300pt]{asteroids_loss2.jpg}
+\caption{Train loss vs. validation loss of second model}
+\end{figure}
+
+\newpage
+
+With the noise issue taken care of, I began to downsize the model until it no longer over-fit the train set. The first adjustment I made was to the actual size of the hidden layers. I halved each of their output size and trained the model again.
+
+Third model:
+
+* batch size: 512
+* number of hidden layers: 4
+* size of hidden layers: 64, 64, 32, 32
+* dropout layers: none
+* epochs: 50
+
+The third model loss is shown in Figure 3. It did manage to reduce the over-fitting, but not nearly enough. I also noticed that the model begins converging very early, around 10 epochs or so.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width = 300pt]{asteroids_loss3.jpg}
+\caption{Train loss vs. validation loss of third model}
+\end{figure}
+
+Since the train loss is converging pretty early on, I decided to reduce the model size again. This time I actually removed a hidden layer entirely and reduced the size of the last hidden layer.
+
+Fourth model:
+
+* batch size: 512
+* number of hidden layers: 3
+* size of hidden layers: 64, 32, 16
+* dropout layers: none
+* epochs: 50
+  
+The results from the fourth model are plotted in Figure 4. The over-fitting was reduced again, but still prevalent. The train loss did take longer to converge though, which was expected.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width = 300pt]{asteroids_loss4.jpg}
+\caption{Train loss vs. validation loss of fourth model}
+\end{figure}
+
+Rather than reducing the model size on the fifth training run, I added a dropout layer between each hidden layer. I chose a relatively small dropout rate of 0.2.
+
+Fifth model:
+
+* batch size: 512
+* number of hidden layers: 3
+* size of hidden layers: 64, 32, 16
+* dropout layers: 3 (rate: 0.25)
+* epochs: 50
+
+As you can see in Figure 5, the dropout layers reduced the amount of over-fitting drastically. The validation loss follows the train loss very closely. The model performance begins to converge around 30 epochs.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width = 300pt]{asteroids_loss5.jpg}
+\caption{Train loss vs. validation loss of fifth model}
+\end{figure}
+
+For the last training cycle, I reduced the number of epochs to 30, as that was were the model began tapering off.
+
+Final model:
+
+* batch size: 512
+* number of hidden layers: 3
+* size of hidden layers: 64, 32, 16
+* dropout layers: 3 (rate: 0.25)
+* epochs: 30
+  
+\newpage
+
+The tuned model performed very well. After evaluating on the reserved test set, I got the following values:
+
+* $mae = 0.969$
+* $R^2 = 0.895$
+
+## Feature Engineering
+The original model uses only the features provided by JPL. To increase model performance, I performed feature engineering to create new representations of the data. The new features that I decided to use were the log transforms. I took the log of every numeric feature and added it to the predictor set. I also transformed the diameter, so the new target is the log of diameter. The top 10 correlated features are shown in Table 4. The correlation in the data after the engineering is significantly higher than the previous predictor set.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{2cm}|p{1.75cm}||p{1.75cm}|p{2cm}|}
+  \hline
+  feature & correlation & feature & correlation\\
+  \hline
+  log(diameter) & 1.000000 & log(q) & 0.543708\\
+  \hline
+  log(H) & 0.835468 & log(moid) & 0.528661\\
+  \hline
+  H & 0.832306 & q & 0.522391\\
+  \hline
+  log(a) & 0.563592 & moid & 0.521080\\
+  \hline
+  log(per y) & 0.563592 &  data arc & 0.519099\\
+  \hline
+\end{tabular}
+\caption{Correlation with log(diameter)}
+\label{Table:4}
+\end{table}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width = 300pt]{asteroids_loss6.jpg}
+\caption{Train loss vs. validation loss of original model w/ feature engineering}
+\end{figure}
+
+For the first training cycle, I used the already tuned model. The loss is shown in Figure 6. As expected, the model loss converges almost immediately. The model is unnecessarily complex for the engineered data. I simplified the model by reducing the number of hidden layers, decreasing the size of the hidden layers, and removed the dropout layers. I also noticed the lack of any noise in the loss, so I decreased the batch size as well. The model loss is shown in Figure 7.
+
+Simplified model:
+
+* batch size: 64
+* number of hidden layers: 2
+* size of hidden layers: 16, 8
+* dropout layers: none
+* epochs: 10
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width = 300pt]{asteroids_loss7.jpg}
+\caption{Train loss vs. validation loss of simplified model w/ feature engineering}
+\end{figure}
+
+Even after simplifying the model, the loss converges very quickly (around 4 epochs). I re-trained the same model again, but only with 4 epochs.
+
+Simplified model w/ less epochs:
+
+* batch size: 64
+* number of hidden layers: 3
+* size of hidden layers: 64, 32, 16
+* dropout layers: 3 (rate: 0.25)
+* epochs: 4
+  
+I evaluated the model on the test set and got the following values:
+
+* $mae = 0.078$
+* $R^2 = 0.967$
+
+# Discussion
+The original model I developed performed reasonably well, with $R^2 = 0.895$. After feature engineering, I was able to create a much more simple model that performed even better, with $R^2 = 0.967$. This goes to show how important feature engineering is to deep learning, and more generally, machine learning as a whole.
+
+# References
