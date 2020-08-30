@@ -8,7 +8,7 @@
 
 - ## Deep Learning
 
-  - Predicting Asteroid Diameter Size with Neural Networks](https://github.com/acfarnam/Data-Science-Projects/tree/master/Predicting%20Asteroid%20Diameter%20using%20Neural%20Networks): Description
+  - [Predicting Asteroid Diameter Size with Neural Networks](https://github.com/acfarnam/Data-Science-Projects/tree/master/Predicting%20Asteroid%20Diameter%20using%20Neural%20Networks): Description
 
   - Classifying Insect Images with Convolutional Neural Network: Description
 
