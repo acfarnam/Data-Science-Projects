@@ -1,5 +1,6 @@
 # Data Science Projects
 
+This repository contains data science projects that I have completed during my time at university or on my own time.
 
 - ## Machine Learning
 
@@ -10,7 +11,7 @@
 
   - [Predicting Asteroid Diameter Size with Neural Networks](https://github.com/acfarnam/Data-Science-Projects/tree/master/Predicting%20Asteroid%20Diameter%20using%20Neural%20Networks): Neural network trained and tuned to predict diameter of asteroids.
 
-  - Classifying Insect Images with Convolutional Neural Network: CNN that classifies insect images into 5 different classes (under construction).
+%  - Classifying Insect Images with Convolutional Neural Network: CNN that classifies insect images into 5 different classes (under construction).
 
 
 - ## Time Series Analysis
